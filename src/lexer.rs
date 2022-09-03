@@ -33,6 +33,8 @@ pub enum Token<'a> {
     #[regex(r"_*[a-zA-Z][a-zA-Z0-9_]*", |lex| lex.slice())]
     Id(&'a str),
 
+    // TODO number literals
+
     // TODO backslash sequences
     #[regex(r#""[^"]*""#, |lex| lex.slice())]
     #[regex(r#"'[^']*'"#, |lex| lex.slice())]
@@ -153,4 +155,105 @@ pub enum Token<'a> {
     Dollar,
 }
 
-// TODO tests
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn empty() {
+        let src = "";
+        let mut lexer = Lexer::new(src);
+        assert_eq!(lexer.next(), None);
+    }
+
+    #[test]
+    fn single_id_one_char() {
+        let src = "x";
+        let mut lexer = Lexer::new(src);
+        let span1 = (0, Token::Id("x"), 1);
+        assert_eq!(lexer.next(), Some(Ok(span1)));
+        assert_eq!(lexer.next(), None);
+    }
+
+    #[test]
+    fn single_id() {
+        let src = "foobar";
+        let mut lexer = Lexer::new(src);
+        let span1 = (0, Token::Id("foobar"), 6);
+        assert_eq!(lexer.next(), Some(Ok(span1)));
+        assert_eq!(lexer.next(), None);
+    }
+
+    #[test]
+    fn single_id_underscores() {
+        let src = "__abc_def";
+        let mut lexer = Lexer::new(src);
+        let span1 = (0, Token::Id("__abc_def"), 9);
+        assert_eq!(lexer.next(), Some(Ok(span1)));
+        assert_eq!(lexer.next(), None);
+    }
+
+    #[test]
+    fn single_id_camel_case() {
+        let src = "camelCaseId";
+        let mut lexer = Lexer::new(src);
+        let span1 = (0, Token::Id("camelCaseId"), 11);
+        assert_eq!(lexer.next(), Some(Ok(span1)));
+        assert_eq!(lexer.next(), None);
+    }
+
+    #[test]
+    fn single_kw() {
+        let src = "if";
+        let mut lexer = Lexer::new(src);
+        let span1 = (0, Token::If, 2);
+        assert_eq!(lexer.next(), Some(Ok(span1)));
+        assert_eq!(lexer.next(), None);
+    }
+
+    #[test]
+    fn expr_add() {
+        let src = "a+b";
+        let mut lexer = Lexer::new(src);
+        let span1 = (0, Token::Id("a"), 1);
+        let span2 = (1, Token::Plus, 2);
+        let span3 = (2, Token::Id("b"), 3);
+
+        assert_eq!(lexer.next(), Some(Ok(span1)));
+        assert_eq!(lexer.next(), Some(Ok(span2)));
+        assert_eq!(lexer.next(), Some(Ok(span3)));
+        assert_eq!(lexer.next(), None);
+    }
+
+    #[test]
+    fn if_clause() {
+        let src = "if x == y";
+        let mut lexer = Lexer::new(src);
+        let span1 = (0, Token::If, 2);
+        let span2 = (3, Token::Id("x"), 4);
+        let span3 = (5, Token::Equals, 7);
+        let span4 = (8, Token::Id("y"), 9);
+
+        assert_eq!(lexer.next(), Some(Ok(span1)));
+        assert_eq!(lexer.next(), Some(Ok(span2)));
+        assert_eq!(lexer.next(), Some(Ok(span3)));
+        assert_eq!(lexer.next(), Some(Ok(span4)));
+        assert_eq!(lexer.next(), None);
+    }
+
+    #[test]
+    fn var_decl() {
+        let src = "int x;";
+        let mut lexer = Lexer::new(src);
+        let span1 = (0, Token::Int, 3);
+        let span2 = (4, Token::Id("x"), 5);
+        let span3 = (5, Token::Semicolon, 6);
+
+        assert_eq!(lexer.next(), Some(Ok(span1)));
+        assert_eq!(lexer.next(), Some(Ok(span2)));
+        assert_eq!(lexer.next(), Some(Ok(span3)));
+        assert_eq!(lexer.next(), None);
+    }
+
+    //TODO more tests
+}
