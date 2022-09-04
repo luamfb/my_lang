@@ -33,7 +33,18 @@ pub enum Token<'a> {
     #[regex(r"_*[a-zA-Z][a-zA-Z0-9_]*", |lex| lex.slice())]
     Id(&'a str),
 
-    // TODO number literals
+    #[token("0",                    |lex| lex.slice())]
+    #[regex(r"[+-]?[0-9][0-9_]*",   |lex| lex.slice())]
+    DecNum(&'a str),
+    #[regex(r"[+-]?[0-9][0-9_]*\.[0-9][0-9_]*", |lex| lex.slice())]
+    DecDotNum(&'a str),
+
+    #[regex(r"0x[0-9a-fA-F][0-9a-fA-F_]*",  |lex| lex.slice())]
+    HexNum(&'a str),
+    #[regex(r"0o[0-7][0-7_]*",              |lex| lex.slice())]
+    OctNum(&'a str),
+    #[regex(r"0b[01][01_]*",                |lex| lex.slice())]
+    BinNum(&'a str),
 
     // TODO backslash sequences
     #[regex(r#""[^"]*""#, |lex| lex.slice())]
@@ -252,6 +263,40 @@ mod tests {
         assert_eq!(lexer.next(), Some(Ok(span1)));
         assert_eq!(lexer.next(), Some(Ok(span2)));
         assert_eq!(lexer.next(), Some(Ok(span3)));
+        assert_eq!(lexer.next(), None);
+    }
+
+    #[test]
+    fn decimal_literals() {
+        let src = "-1 0 +0.7 123_456 -3.14_16";
+        let mut lexer = Lexer::new(src);
+        let span1 = (0, Token::DecNum("-1"), 2);
+        let span2 = (3, Token::DecNum("0"), 4);
+        let span3 = (5, Token::DecDotNum("+0.7"), 9);
+        let span4 = (10, Token::DecNum("123_456"), 17);
+        let span5 = (18, Token::DecDotNum("-3.14_16"), 26);
+
+        assert_eq!(lexer.next(), Some(Ok(span1)));
+        assert_eq!(lexer.next(), Some(Ok(span2)));
+        assert_eq!(lexer.next(), Some(Ok(span3)));
+        assert_eq!(lexer.next(), Some(Ok(span4)));
+        assert_eq!(lexer.next(), Some(Ok(span5)));
+        assert_eq!(lexer.next(), None);
+    }
+
+    #[test]
+    fn non_decimal_literals() {
+        let src = "0x12 0b1101_0010 0xDEAD_BEEF 0o775";
+        let mut lexer = Lexer::new(src);
+        let span1 = (0, Token::HexNum("0x12"), 4);
+        let span2 = (5, Token::BinNum("0b1101_0010"), 16);
+        let span3 = (17, Token::HexNum("0xDEAD_BEEF"), 28);
+        let span4 = (29, Token::OctNum("0o775"), 34);
+
+        assert_eq!(lexer.next(), Some(Ok(span1)));
+        assert_eq!(lexer.next(), Some(Ok(span2)));
+        assert_eq!(lexer.next(), Some(Ok(span3)));
+        assert_eq!(lexer.next(), Some(Ok(span4)));
         assert_eq!(lexer.next(), None);
     }
 
