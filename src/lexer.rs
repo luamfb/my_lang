@@ -129,9 +129,32 @@ pub enum Token<'a> {
     BitXor,
     #[token("~")]
     BitNot,
+    #[token("<<")]
+    ShiftLeft,
+    #[token(">>")]
+    ShiftRight,
     #[token("=")]
     Assign,
-    // TODO compound assignment operators e.g. `+=`
+    #[token("+=")]
+    AddAssign,
+    #[token("-=")]
+    SubAssign,
+    #[token("*=")]
+    MulAssign,
+    #[token("/=")]
+    DivAssign,
+    #[token("%=")]
+    RemAssign,
+    #[token("&=")]
+    BitAndAssign,
+    #[token("|=")]
+    BitOrAssign,
+    #[token("^=")]
+    BitXorAssign,
+    #[token("<<=")]
+    ShiftLeftAssign,
+    #[token(">>=")]
+    ShiftRightAssign,
 
     // symbols
     #[token(";")]
