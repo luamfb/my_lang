@@ -46,9 +46,8 @@ pub enum Token<'a> {
     #[regex(r"0b[01][01_]*",                |lex| lex.slice())]
     BinNum(&'a str),
 
-    // TODO backslash sequences
-    #[regex(r#""[^"]*""#, |lex| lex.slice())]
-    #[regex(r#"'[^']*'"#, |lex| lex.slice())]
+    #[regex(r#""([^\\"]|\\([\\"'aefnrtv]|x[0-9a-fA-F][0-9a-fA-F]))*""#, |lex| lex.slice())]
+    #[regex(r#"'([^\\']|\\([\\"'aefnrtv]|x[0-9a-fA-F][0-9a-fA-F]))*'"#, |lex| lex.slice())]
     StrLit(&'a str),
 
     // keywords
@@ -320,6 +319,30 @@ mod tests {
         assert_eq!(lexer.next(), Some(Ok(span2)));
         assert_eq!(lexer.next(), Some(Ok(span3)));
         assert_eq!(lexer.next(), Some(Ok(span4)));
+        assert_eq!(lexer.next(), None);
+    }
+
+    #[test]
+    fn simple_strlit() {
+        let src = r#"'single' "double""#;
+        let mut lexer = Lexer::new(src);
+        let span1 = (0, Token::StrLit("'single'"), 8);
+        let span2 = (9, Token::StrLit("\"double\""), 17);
+        assert_eq!(lexer.next(), Some(Ok(span1)));
+        assert_eq!(lexer.next(), Some(Ok(span2)));
+        assert_eq!(lexer.next(), None);
+    }
+
+    #[test]
+    fn strlit_backslash_seq() {
+        let src = r#"'don\'t' "foo\n" '\x61\x5f\x2D'"#;
+        let mut lexer = Lexer::new(src);
+        let span1 = (0, Token::StrLit("'don\\'t'"), 8);
+        let span2 = (9, Token::StrLit("\"foo\\n\""), 16);
+        let span3 = (17, Token::StrLit("'\\x61\\x5f\\x2D'"), 31);
+        assert_eq!(lexer.next(), Some(Ok(span1)));
+        assert_eq!(lexer.next(), Some(Ok(span2)));
+        assert_eq!(lexer.next(), Some(Ok(span3)));
         assert_eq!(lexer.next(), None);
     }
 
