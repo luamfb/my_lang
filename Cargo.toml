@@ -5,3 +5,7 @@ edition = "2021"
 
 [dependencies]
 logos = "0.12"
+lalrpop-util = "0.19"
+
+[build-dependencies]
+lalrpop = "0.19"

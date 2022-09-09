@@ -1,0 +1,108 @@
+use crate::{
+    ast::*,
+    lexer::Token,
+};
+
+grammar<'input>(input: &'input str);
+
+pub Expr: Expr<'input> = expr_base;
+
+expr_base : Expr<'input> = {
+    id      => Expr::Id(<>),
+    literal => Expr::Lit(<>),
+};
+
+literal : Literal<'input> = {
+    STR_LIT     => Literal::Str(<>),
+    DEC_NUM     => Literal::Dec(<>),
+    DEC_DOT_NUM => Literal::DecDot(<>),
+    HEX_NUM     => Literal::Hex(<>),
+    BIN_NUM     => Literal::Bin(<>),
+    OCT_NUM     => Literal::Oct(<>),
+    TRUE        => Literal::Bool(true),
+    FALSE       => Literal::Bool(false),
+};
+
+id : &'input str = ID;
+
+extern {
+    type Location = usize;
+    type Error = ();
+    enum Token<'input> {
+        ID                  => Token::Id(<&'input str>),
+        STR_LIT             => Token::StrLit(<&'input str>),
+
+        DEC_NUM             => Token::DecNum(<&'input str>),
+        DEC_DOT_NUM         => Token::DecDotNum(<&'input str>),
+        HEX_NUM             => Token::HexNum(<&'input str>),
+        OCT_NUM             => Token::OctNum(<&'input str>),
+        BIN_NUM             => Token::BinNum(<&'input str>),
+
+        IF                  => Token::If,
+        ELSE                => Token::Else,
+        FOR                 => Token::For,
+        WHILE               => Token::While,
+        UNTIL               => Token::Until,
+        DO                  => Token::Do,
+        IN                  => Token::In,
+        RET                 => Token::Ret,
+        INT                 => Token::Int,
+        UINT                => Token::Uint,
+        FLOAT               => Token::Float,
+        DOUBLE              => Token::Double,
+        BYTE                => Token::Byte,
+        BOOL                => Token::Bool,
+        TRUE                => Token::True,
+        FALSE               => Token::False,
+
+        INCR                => Token::Incr,
+        DECR                => Token::Decr,
+        PLUS                => Token::Plus,
+        MINUS               => Token::Minus,
+        MULT                => Token::Mult,
+        DIV                 => Token::Div,
+        REM                 => Token::Rem,
+        EQUALS              => Token::Equals,
+        NOT_EQUALS          => Token::NotEquals,
+        LESS                => Token::Less,
+        LESS_EQ             => Token::LessEq,
+        GREATER             => Token::Greater,
+        GREATER_EQ          => Token::GreaterEq,
+        AND                 => Token::And,
+        OR                  => Token::Or,
+        NOT                 => Token::Not,
+        BIT_AND             => Token::BitAnd,
+        BIT_OR              => Token::BitOr,
+        BIT_XOR             => Token::BitXor,
+        BIT_NOT             => Token::BitNot,
+        SHIFT_LEFT          => Token::ShiftLeft,
+        SHIFT_RIGHT         => Token::ShiftRight,
+        ASSIGN              => Token::Assign,
+        ADD_ASSIGN          => Token::AddAssign,
+        SUB_ASSIGN          => Token::SubAssign,
+        MUL_ASSIGN          => Token::MulAssign,
+        DIV_ASSIGN          => Token::DivAssign,
+        REM_ASSIGN          => Token::RemAssign,
+        BIT_AND_ASSIGN      => Token::BitAndAssign,
+        BIT_OR_ASSIGN       => Token::BitOrAssign,
+        BIT_XOR_ASSIGN      => Token::BitXorAssign,
+        SHIFT_LEFT_ASSIGN   => Token::ShiftLeftAssign,
+        SHIFT_RIGHT_ASSIGN  => Token::ShiftRightAssign,
+
+        SEMI                => Token::Semicolon,
+        COMMA               => Token::Comma,
+        DOT                 => Token::Dot,
+        COLON               => Token::Colon,
+        L_PAREN             => Token::LParen,
+        R_PAREN             => Token::RParen,
+        L_BRACE             => Token::LBrace,
+        R_BRACE             => Token::RBrace,
+        L_BRACKET           => Token::LBracket,
+        R_BRACKET           => Token::RBracket,
+        BACKSLASH           => Token::Backslash,
+        QUESTION            => Token::Question,
+        AT                  => Token::At,
+        HASH                => Token::Hash,
+        DOLLAR              => Token::Dollar,
+    }
+}

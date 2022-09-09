@@ -23,7 +23,7 @@ impl<'a> Iterator for Lexer<'a> {
     }
 }
 
-#[derive(Logos, Debug, PartialEq)]
+#[derive(Logos, Debug, PartialEq, Clone)]
 pub enum Token<'a> {
     #[error]
     #[regex(r"[ \t\n\r\f]+",    logos::skip)]
