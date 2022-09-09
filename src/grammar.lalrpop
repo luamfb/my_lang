@@ -5,11 +5,96 @@ use crate::{
 
 grammar<'input>(input: &'input str);
 
-pub Expr: Expr<'input> = expr_base;
+// Taken directly from LALRPOP book's `Tier` macro.
+// Meant for left-to-right associative, binary operators.
+//
+expr_tier<oper, higher_prec> : Expr<'input> = {
+    <lhs:expr_tier<oper, higher_prec>> <op:oper> <rhs:higher_prec> =>
+        Expr::BinOp(Box::new(lhs), op, Box::new(rhs)),
+    higher_prec,
+};
 
-expr_base : Expr<'input> = {
-    id      => Expr::Id(<>),
+pub Expr : Expr<'input> = {
+    <val:expr0> <ter:ternary_tail?> => match ter {
+        None => val,
+        Some((cond, else_val)) => Expr::Ternary {
+            cond,
+            if_val: Box::new(val),
+            else_val,
+        },
+    }
+};
+
+ternary_tail : (Box<Expr<'input>>, Box<Expr<'input>>)
+    = IF <cond:expr0> ELSE <else_val:expr0>
+    => (Box::new(cond), Box::new(else_val));
+
+expr0   = expr_tier<oper0, expr1>;
+expr1   = expr_tier<oper1, expr2>;
+expr2   = expr_tier<oper2, expr3>;
+expr3   = expr_tier<oper3, expr4>;
+expr4   = expr_tier<oper4, expr5>;
+expr5   = expr_tier<oper5, expr6>;
+expr6   = expr_tier<oper6, expr7>;
+expr7   = expr_tier<oper7, expr8>;
+expr8   = expr_tier<oper8, expr9>;
+expr9   = expr_tier<oper9, expr10>;
+
+expr10 : Expr<'input> = {
+    <op:unary_oper> <val:expr_highest> => Expr::UnOp(Box::new(val), op),
+    expr_highest,
+};
+
+expr_highest : Expr<'input> = {
+    ID      => Expr::Id(<>),
     literal => Expr::Lit(<>),
+    "(" <expr0> ")",
+};
+
+// note: operators are numbered from lowest to highest precedence
+oper0 : BinaryOper = OR => BinaryOper::Or;
+oper1 : BinaryOper = AND => BinaryOper::And;
+
+oper2 : BinaryOper = {
+    EQUALS      => BinaryOper::Equals,
+    NOT_EQUALS  => BinaryOper::NotEquals,
+};
+
+oper3 : BinaryOper = {
+    LESS        => BinaryOper::Less,
+    LESS_EQ     => BinaryOper::LessEq,
+    GREATER     => BinaryOper::Greater,
+    GREATER_EQ  => BinaryOper::GreaterEq,
+};
+
+// Note: unlike C, we give bitwise operators higher precedence than
+// comparison operators.
+//
+oper4 : BinaryOper = BIT_OR     => BinaryOper::BitOr;
+oper5 : BinaryOper = BIT_XOR    => BinaryOper::BitXor;
+oper6 : BinaryOper = BIT_AND    => BinaryOper::BitAnd;
+
+oper7 : BinaryOper = {
+    SHIFT_LEFT  => BinaryOper::ShiftLeft,
+    SHIFT_RIGHT => BinaryOper::ShiftRight,
+};
+
+oper8 : BinaryOper = {
+    PLUS    => BinaryOper::Add,
+    MINUS   => BinaryOper::Sub,
+};
+
+oper9 : BinaryOper = {
+    MULT    => BinaryOper::Mul,
+    DIV     => BinaryOper::Div,
+    REM     => BinaryOper::Rem,
+};
+
+unary_oper : UnaryOper = {
+    NOT     => UnaryOper::Not,
+    BIT_NOT => UnaryOper::BitNot,
+    PLUS    => UnaryOper::Plus,
+    MINUS   => UnaryOper::Minus,
 };
 
 literal : Literal<'input> = {
@@ -22,8 +107,6 @@ literal : Literal<'input> = {
     TRUE        => Literal::Bool(true),
     FALSE       => Literal::Bool(false),
 };
-
-id : &'input str = ID;
 
 extern {
     type Location = usize;
@@ -93,12 +176,12 @@ extern {
         COMMA               => Token::Comma,
         DOT                 => Token::Dot,
         COLON               => Token::Colon,
-        L_PAREN             => Token::LParen,
-        R_PAREN             => Token::RParen,
-        L_BRACE             => Token::LBrace,
-        R_BRACE             => Token::RBrace,
-        L_BRACKET           => Token::LBracket,
-        R_BRACKET           => Token::RBracket,
+        "("                 => Token::LParen,
+        ")"                 => Token::RParen,
+        "{"                 => Token::LBrace,
+        "}"                 => Token::RBrace,
+        "["                 => Token::LBracket,
+        "]"                 => Token::RBracket,
         BACKSLASH           => Token::Backslash,
         QUESTION            => Token::Question,
         AT                  => Token::At,
