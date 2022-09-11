@@ -229,4 +229,20 @@ mod tests {
             Box::new(Expr::Id("z")));
         assert_eq!(expected, parse_expr(src).unwrap());
     }
+
+    #[test]
+    fn ternary_expr() {
+        let src = "x if x >= 0 else -x";
+        let expected = Expr::Ternary {
+            cond: Box::new(Expr::BinOp(
+                          Box::new(Expr::Id("x")),
+                          BinaryOper::GreaterEq,
+                          Box::new(Expr::Lit(Literal::Dec("0"))))),
+            if_val: Box::new(Expr::Id("x")),
+            else_val: Box::new(Expr::UnOp(
+                    Box::new(Expr::Id("x")),
+                    UnaryOper::Minus)),
+        };
+        assert_eq!(expected, parse_expr(src).unwrap());
+    }
 }
