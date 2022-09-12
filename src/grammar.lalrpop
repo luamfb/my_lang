@@ -5,6 +5,17 @@ use crate::{
 
 grammar<'input>(input: &'input str);
 
+// Taken directly from LALRPOP book's `Comma` macro.
+comma<T> : Vec<T> = {
+    <mut v:(<T> COMMA)*> <last:T?> => match last {
+        None => v,
+        Some(last) => {
+            v.push(last);
+            v
+        }
+    }
+};
+
 // Taken directly from LALRPOP book's `Tier` macro.
 // Meant for left-to-right associative, binary operators.
 //
@@ -45,9 +56,12 @@ expr10 : Expr<'input> = {
     expr_highest,
 };
 
+fn_call : FnCall<'input> = <ID> "(" <comma<Expr>> ")" => FnCall::new(<>);
+
 expr_highest : Expr<'input> = {
     ID      => Expr::Id(<>),
     literal => Expr::Lit(<>),
+    fn_call => Expr::Call(<>),
     "(" <expr0> ")",
 };
 

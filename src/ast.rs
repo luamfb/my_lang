@@ -2,6 +2,7 @@
 pub enum Expr<'a> {
     Id(&'a str),
     Lit(Literal<'a>),
+    Call(FnCall<'a>),
     UnOp(Box<Expr<'a>>, UnaryOper),
     BinOp(Box<Expr<'a>>, BinaryOper, Box<Expr<'a>>),
     Ternary {
@@ -9,6 +10,12 @@ pub enum Expr<'a> {
         if_val: Box<Expr<'a>>,
         else_val: Box<Expr<'a>>
     },
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct FnCall<'a> {
+    name: &'a str,
+    args: Vec<Expr<'a>>,
 }
 
 #[derive(Debug, PartialEq, Clone, Copy)]
@@ -65,4 +72,13 @@ pub enum Literal<'a> {
     Hex(&'a str),
     Bin(&'a str),
     Oct(&'a str),
+}
+
+impl<'a> FnCall<'a> {
+    pub fn new(name: &'a str, args: Vec<Expr<'a>>) -> Self {
+        FnCall {
+            name,
+            args,
+        }
+    }
 }

@@ -245,4 +245,114 @@ mod tests {
         };
         assert_eq!(expected, parse_expr(src).unwrap());
     }
+
+    #[test]
+    fn simple_call_no_args() {
+        let src = "foo()";
+        let expected = Expr::Call(FnCall::new("foo", vec![]));
+        assert_eq!(expected, parse_expr(src).unwrap());
+    }
+
+    #[test]
+    fn simple_call_one_arg() {
+        let src = "print(s)";
+        let expected = Expr::Call(FnCall::new("print", vec![Expr::Id("s")]));
+        assert_eq!(expected, parse_expr(src).unwrap());
+    }
+
+    #[test]
+    fn simple_call_multi_args() {
+        let src = "add_values(12, 35, -7)";
+        let expected = Expr::Call(FnCall::new("add_values", vec![
+                                              Expr::Lit(Literal::Dec("12")),
+                                              Expr::Lit(Literal::Dec("35")),
+                                              Expr::Lit(Literal::Dec("-7"))]));
+        assert_eq!(expected, parse_expr(src).unwrap());
+    }
+
+    #[test]
+    fn call_expr_in_args() {
+        let src = "fooBar(x + 1, y % 3, z / 2.0)";
+
+        let arg1 = Expr::BinOp(
+            Box::new(Expr::Id("x")),
+            BinaryOper::Add,
+            Box::new(Expr::Lit(Literal::Dec("1"))));
+        let arg2 = Expr::BinOp(
+            Box::new(Expr::Id("y")),
+            BinaryOper::Rem,
+            Box::new(Expr::Lit(Literal::Dec("3"))));
+        let arg3 = Expr::BinOp(
+            Box::new(Expr::Id("z")),
+            BinaryOper::Div,
+            Box::new(Expr::Lit(Literal::DecDot("2.0"))));
+
+        let expected = Expr::Call(FnCall::new("fooBar", vec![arg1, arg2, arg3]));
+        assert_eq!(expected, parse_expr(src).unwrap());
+    }
+
+    #[test]
+    fn call_inside_expr() {
+        let src = "foo(1, 2) * 3";
+        let call = FnCall::new("foo", vec![
+                               Expr::Lit(Literal::Dec("1")),
+                               Expr::Lit(Literal::Dec("2"))]);
+        let expected = Expr::BinOp(
+            Box::new(Expr::Call(call)),
+            BinaryOper::Mul,
+            Box::new(Expr::Lit(Literal::Dec("3"))));
+
+        assert_eq!(expected, parse_expr(src).unwrap());
+    }
+
+    #[test]
+    fn call_with_expr_arg_inside_expr() {
+        let src = "add_one(x >> 1) < y";
+        let arg = Expr::BinOp(
+            Box::new(Expr::Id("x")),
+            BinaryOper::ShiftRight,
+            Box::new(Expr::Lit(Literal::Dec("1"))));
+        let expected = Expr::BinOp(
+            Box::new(Expr::Call(FnCall::new("add_one", vec![arg]))),
+            BinaryOper::Less,
+            Box::new(Expr::Id("y")));
+
+        assert_eq!(expected, parse_expr(src).unwrap());
+    }
+
+    #[test]
+    fn call_with_ternary_arg() {
+        let src = "print('positive' if x >= 0 else 'negative')";
+        let arg = Expr::Ternary {
+            cond: Box::new(Expr::BinOp(
+                          Box::new(Expr::Id("x")),
+                          BinaryOper::GreaterEq,
+                          Box::new(Expr::Lit(Literal::Dec("0"))))),
+            if_val: Box::new(Expr::Lit(Literal::Str("'positive'"))),
+            else_val: Box::new(Expr::Lit(Literal::Str("'negative'"))),
+        };
+        let expected = Expr::Call(FnCall::new("print", vec![arg]));
+        assert_eq!(expected, parse_expr(src).unwrap());
+    }
+
+    #[test]
+    fn call_inside_ternary() {
+        let src = "halve(n) if n % 2 == 0 else thricePlus1(n)";
+        let cond = Box::new(Expr::BinOp(
+            Box::new(Expr::BinOp(
+                    Box::new(Expr::Id("n")),
+                    BinaryOper::Rem,
+                    Box::new(Expr::Lit(Literal::Dec("2"))))),
+            BinaryOper::Equals,
+            Box::new(Expr::Lit(Literal::Dec("0")))));
+
+        let if_val = Box::new(Expr::Call(FnCall::new("halve",
+                                                     vec![Expr::Id("n")])));
+
+        let else_val = Box::new(Expr::Call(FnCall::new("thricePlus1",
+                                                       vec![Expr::Id("n")])));
+
+        let expected = Expr::Ternary { cond, if_val, else_val };
+        assert_eq!(expected, parse_expr(src).unwrap());
+    }
 }
