@@ -1,4 +1,32 @@
 #[derive(Debug, PartialEq, Clone)]
+pub enum Stmt<'a> {
+    Ret(Expr<'a>),
+    Call(FnCall<'a>),
+    AssignLike(AssignLike<'a>),
+    Branch(Expr<'a>, Vec<Stmt<'a>>, Vec<Stmt<'a>>),
+    /// Loops involving while or until
+    Loop(LoopKind, Expr<'a>, Vec<Stmt<'a>>),
+    ForEach(&'a str, Expr<'a>, Vec<Stmt<'a>>),
+    CLikeFor(AssignLike<'a>, Expr<'a>, AssignLike<'a>, Vec<Stmt<'a>>),
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub enum AssignLike<'a> {
+    Assign(Vec<&'a str>, Expr<'a>),
+    Compound(&'a str, CompoundOper, Expr<'a>),
+    Incr(&'a str),
+    Decr(&'a str),
+}
+
+#[derive(Debug, PartialEq, Clone, Copy)]
+pub enum LoopKind {
+    While,
+    Until,
+    DoWhile,
+    DoUntil,
+}
+
+#[derive(Debug, PartialEq, Clone)]
 pub enum Expr<'a> {
     Id(&'a str),
     Lit(Literal<'a>),
@@ -49,8 +77,7 @@ pub enum BinaryOper {
 }
 
 #[derive(Debug, PartialEq, Clone, Copy)]
-pub enum AssignOper {
-    Assign,
+pub enum CompoundOper {
     AddAssign,
     SubAssign,
     MulAssign,

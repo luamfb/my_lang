@@ -1,6 +1,6 @@
 use lalrpop_util::{lalrpop_mod, ParseError};
 use crate::{
-    ast::Expr,
+    ast::{Expr, Stmt},
     lexer::{Lexer, Token},
 };
 
@@ -15,12 +15,21 @@ pub fn parse_expr<'a>(src: &'a str) -> Result<Expr<'a>, Error<'a>> {
     expr
 }
 
+pub fn parse_stmt<'a>(src: &'a str) -> Result<Stmt<'a>, Error<'a>> {
+    let lexer = Lexer::new(src);
+    let stmt = grammar::StmtParser::new()
+        .parse(src, lexer);
+    stmt
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::{
         ast::*,
     };
+
+    // ============================== EXPRESSIONS ==============================
 
     #[test]
     fn expr_id() {
@@ -354,5 +363,183 @@ mod tests {
 
         let expected = Expr::Ternary { cond, if_val, else_val };
         assert_eq!(expected, parse_expr(src).unwrap());
+    }
+
+    // ============================== STATEMENTS ==============================
+
+    #[test]
+    fn call_stmt() {
+        let src = "print(s);";
+        let expected = Stmt::Call(FnCall::new("print", vec![Expr::Id("s")]));
+        assert_eq!(expected, parse_stmt(src).unwrap());
+    }
+
+    #[test]
+    fn assign_stmt() {
+        let src = "a = 4;";
+        let expected = Stmt::AssignLike(AssignLike::Assign(
+                vec!["a"],
+                Expr::Lit(Literal::Dec("4"))));
+        assert_eq!(expected, parse_stmt(src).unwrap());
+    }
+
+    #[test]
+    fn incr_stmt() {
+        let src = "x++;";
+        let expected = Stmt::AssignLike(AssignLike::Incr("x"));
+        assert_eq!(expected, parse_stmt(src).unwrap());
+    }
+
+    #[test]
+    fn decr_stmt() {
+        let src = "i--;";
+        let expected = Stmt::AssignLike(AssignLike::Decr("i"));
+        assert_eq!(expected, parse_stmt(src).unwrap());
+    }
+
+    #[test]
+    fn add_assign_stmt() {
+        let src = "foo += 5;";
+        let expected = Stmt::AssignLike(AssignLike::Compound(
+                "foo",
+                CompoundOper::AddAssign,
+                Expr::Lit(Literal::Dec("5"))));
+        assert_eq!(expected, parse_stmt(src).unwrap());
+    }
+
+    #[test]
+    fn mul_assign_stmt() {
+        let src = "x *= 2;";
+        let expected = Stmt::AssignLike(AssignLike::Compound(
+                "x",
+                CompoundOper::MulAssign,
+                Expr::Lit(Literal::Dec("2"))));
+        assert_eq!(expected, parse_stmt(src).unwrap());
+    }
+
+    #[test]
+    fn div_assign_stmt() {
+        let src = "n /= 7;";
+        let expected = Stmt::AssignLike(AssignLike::Compound(
+                "n",
+                CompoundOper::DivAssign,
+                Expr::Lit(Literal::Dec("7"))));
+        assert_eq!(expected, parse_stmt(src).unwrap());
+    }
+
+    #[test]
+    fn rem_assign_stmt() {
+        let src = "i %= n;";
+        let expected = Stmt::AssignLike(AssignLike::Compound(
+                "i",
+                CompoundOper::RemAssign,
+                Expr::Id("n")));
+        assert_eq!(expected, parse_stmt(src).unwrap());
+    }
+
+    #[test]
+    fn multi_assign() {
+        let src = "a = b = c = 0;";
+        let expected = Stmt::AssignLike(AssignLike::Assign(
+                vec!["a", "b", "c"],
+                Expr::Lit(Literal::Dec("0"))));
+        assert_eq!(expected, parse_stmt(src).unwrap());
+    }
+
+    #[test]
+    fn if_stmt() {
+        let src = "if foo {\nbar();\n}";
+        let call = Stmt::Call(FnCall::new("bar", vec![]));
+        let expected = Stmt::Branch(Expr::Id("foo"), vec![call], vec![]);
+        assert_eq!(expected, parse_stmt(src).unwrap());
+    }
+
+    #[test]
+    fn if_else_stmt() {
+        let src = "if foo {\nf1();\n} else {\nf2();\n}";
+        let call1 = Stmt::Call(FnCall::new("f1", vec![]));
+        let call2 = Stmt::Call(FnCall::new("f2", vec![]));
+        let expected = Stmt::Branch(Expr::Id("foo"), vec![call1], vec![call2]);
+        assert_eq!(expected, parse_stmt(src).unwrap());
+    }
+
+    #[test]
+    fn for_in_stmt() {
+        let src = "for elem in elem_list {\nfoo(elem);\n}";
+        let call = Stmt::Call(FnCall::new("foo", vec![Expr::Id("elem")]));
+        let expected = Stmt::ForEach("elem", Expr::Id("elem_list"), vec![call]);
+        assert_eq!(expected, parse_stmt(src).unwrap());
+    }
+
+    #[test]
+    fn c_like_for_stmt() {
+        let src = "for i = 0; i < 10; i++ {\nprint(i);\n}";
+        let call = Stmt::Call(FnCall::new("print", vec![Expr::Id("i")]));
+        let start = AssignLike::Assign(
+            vec!["i"],
+            Expr::Lit(Literal::Dec("0")));
+        let step = Expr::BinOp(
+            Box::new(Expr::Id("i")),
+            BinaryOper::Less,
+            Box::new(Expr::Lit(Literal::Dec("10"))));
+        let stop = AssignLike::Incr("i");
+        let expected = Stmt::CLikeFor(start, step, stop, vec![call]);
+        assert_eq!(expected, parse_stmt(src).unwrap());
+    }
+
+    #[test]
+    fn while_stmt() {
+        let src = "while cond {\nfoo();\n}";
+        let call = Stmt::Call(FnCall::new("foo", vec![]));
+        let cond = Expr::Id("cond");
+        let expected = Stmt::Loop(LoopKind::While, cond, vec![call]);
+        assert_eq!(expected, parse_stmt(src).unwrap());
+    }
+
+    #[test]
+    fn until_stmt() {
+        let src = "until i > 5 {\ni++;\n}";
+        let cond = Expr::BinOp(
+            Box::new(Expr::Id("i")),
+            BinaryOper::Greater,
+            Box::new(Expr::Lit(Literal::Dec("5"))));
+        let incr_stmt = Stmt::AssignLike(AssignLike::Incr("i"));
+        let expected = Stmt::Loop(LoopKind::Until, cond, vec![incr_stmt]);
+        assert_eq!(expected, parse_stmt(src).unwrap());
+    }
+
+    #[test]
+    fn do_while_stmt() {
+        let src = "do {\ni++;\n} while i < MAX;";
+        let cond = Expr::BinOp(
+            Box::new(Expr::Id("i")),
+            BinaryOper::Less,
+            Box::new(Expr::Id("MAX")));
+        let incr_stmt = Stmt::AssignLike(AssignLike::Incr("i"));
+        let expected = Stmt::Loop(LoopKind::DoWhile, cond, vec![incr_stmt]);
+        assert_eq!(expected, parse_stmt(src).unwrap());
+    }
+
+    #[test]
+    fn do_until_stmt() {
+        let src = "do {\nn--;\n} until n < 0;";
+        let cond = Expr::BinOp(
+            Box::new(Expr::Id("n")),
+            BinaryOper::Less,
+            Box::new(Expr::Lit(Literal::Dec("0"))));
+        let decr_stmt = Stmt::AssignLike(AssignLike::Decr("n"));
+        let expected = Stmt::Loop(LoopKind::DoUntil, cond, vec![decr_stmt]);
+        assert_eq!(expected, parse_stmt(src).unwrap());
+    }
+
+    #[test]
+    fn ret_stmt() {
+        let src = "ret x + 3;";
+        let retval = Expr::BinOp(
+            Box::new(Expr::Id("x")),
+            BinaryOper::Add,
+            Box::new(Expr::Lit(Literal::Dec("3"))));
+        let expected = Stmt::Ret(retval);
+        assert_eq!(expected, parse_stmt(src).unwrap());
     }
 }

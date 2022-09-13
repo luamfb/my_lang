@@ -16,6 +16,36 @@ comma<T> : Vec<T> = {
     }
 };
 
+// TODO: variable declaration
+pub Stmt : Stmt<'input> = {
+    RET <Expr> SEMI                     => Stmt::Ret(<>),
+    <fn_call> SEMI                      => Stmt::Call(<>),
+    <assign_like> SEMI                  => Stmt::AssignLike(<>),
+    IF <expr0> <body> <opt_else>        => Stmt::Branch(<>),
+
+    FOR <ID> IN <Expr> <body>           => Stmt::ForEach(<>),
+    FOR <assign_like> SEMI <Expr> SEMI <assign_like> <body>
+        => Stmt::CLikeFor(<>),
+
+    WHILE <c:expr0> <b:body>            => Stmt::Loop(LoopKind::While, c, b),
+    UNTIL <c:expr0> <b:body>            => Stmt::Loop(LoopKind::Until, c, b),
+    DO <b:body> WHILE <c:expr0> SEMI    => Stmt::Loop(LoopKind::DoWhile, c, b),
+    DO <b:body> UNTIL <c:expr0> SEMI    => Stmt::Loop(LoopKind::DoUntil, c, b),
+};
+
+opt_else : Vec<Stmt<'input>> = <b:(ELSE <body>)?> => b.unwrap_or(vec![]);
+
+// Can be either a full statement (if on its own, and followed by a semicolon)
+// or part of a C-like `for`.
+assign_like : AssignLike<'input> = {
+    <(<ID> ASSIGN)+> <Expr>     => AssignLike::Assign(<>),
+    <ID> <compound_oper> <Expr> => AssignLike::Compound(<>),
+    <ID> INCR                   => AssignLike::Incr(<>),
+    <ID> DECR                   => AssignLike::Decr(<>),
+};
+
+body : Vec<Stmt<'input>> = "{" <Stmt*> "}";
+
 // Taken directly from LALRPOP book's `Tier` macro.
 // Meant for left-to-right associative, binary operators.
 //
@@ -110,6 +140,19 @@ unary_oper : UnaryOper = {
     PLUS    => UnaryOper::Plus,
     MINUS   => UnaryOper::Minus,
 };
+
+compound_oper : CompoundOper = {
+    ADD_ASSIGN          => CompoundOper::AddAssign,
+    SUB_ASSIGN          => CompoundOper::SubAssign,
+    MUL_ASSIGN          => CompoundOper::MulAssign,
+    DIV_ASSIGN          => CompoundOper::DivAssign,
+    REM_ASSIGN          => CompoundOper::RemAssign,
+    BIT_AND_ASSIGN      => CompoundOper::BitAndAssign,
+    BIT_OR_ASSIGN       => CompoundOper::BitOrAssign,
+    BIT_XOR_ASSIGN      => CompoundOper::BitXorAssign,
+    SHIFT_LEFT_ASSIGN   => CompoundOper::ShiftLeftAssign,
+    SHIFT_RIGHT_ASSIGN  => CompoundOper::ShiftRightAssign,
+}
 
 literal : Literal<'input> = {
     STR_LIT     => Literal::Str(<>),
