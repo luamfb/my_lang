@@ -16,8 +16,8 @@ comma<T> : Vec<T> = {
     }
 };
 
-// TODO: variable declaration
 pub Stmt : Stmt<'input> = {
+    <type_spec> <comma<(<ID> <(ASSIGN <Expr>)?>)>> SEMI => Stmt::VarDecl(<>),
     RET <Expr> SEMI                     => Stmt::Ret(<>),
     <fn_call> SEMI                      => Stmt::Call(<>),
     <assign_like> SEMI                  => Stmt::AssignLike(<>),
@@ -45,6 +45,17 @@ assign_like : AssignLike<'input> = {
 };
 
 body : Vec<Stmt<'input>> = "{" <Stmt*> "}";
+
+type_spec = basic_type;
+
+basic_type : BasicType = {
+    INT     => BasicType::Int,
+    UINT    => BasicType::Uint,
+    BOOL    => BasicType::Bool,
+    BYTE    => BasicType::Byte,
+    FLOAT   => BasicType::Float,
+    DOUBLE  => BasicType::Double,
+};
 
 // Taken directly from LALRPOP book's `Tier` macro.
 // Meant for left-to-right associative, binary operators.

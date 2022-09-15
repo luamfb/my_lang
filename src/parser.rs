@@ -542,4 +542,56 @@ mod tests {
         let expected = Stmt::Ret(retval);
         assert_eq!(expected, parse_stmt(src).unwrap());
     }
+
+    #[test]
+    fn single_var_decl() {
+        let src = "int x;";
+        let expected = Stmt::VarDecl(BasicType::Int, vec![("x", None)]);
+        assert_eq!(expected, parse_stmt(src).unwrap());
+    }
+
+    #[test]
+    fn single_var_decl_with_value() {
+        let src = "double x = 0.0;";
+        let expected = Stmt::VarDecl(
+            BasicType::Double,
+            vec![("x", Some(Expr::Lit(Literal::DecDot("0.0"))))]);
+        assert_eq!(expected, parse_stmt(src).unwrap());
+    }
+
+    #[test]
+    fn multi_var_decl() {
+        let src = "uint a, b, c;";
+        let expected = Stmt::VarDecl(
+            BasicType::Uint,
+            vec![("a", None), ("b", None), ("c", None)]);
+        assert_eq!(expected, parse_stmt(src).unwrap());
+    }
+
+    #[test]
+    fn multi_var_decl_all_values() {
+        let src = "int x = 1, y = 0;";
+        let assign1 = ("x", Some(Expr::Lit(Literal::Dec("1"))));
+        let assign2 = ("y", Some(Expr::Lit(Literal::Dec("0"))));
+        let expected = Stmt::VarDecl(BasicType::Int, vec![assign1, assign2]);
+        assert_eq!(expected, parse_stmt(src).unwrap());
+    }
+
+    #[test]
+    fn multi_var_decl_value_left() {
+        let src = "int x = 2, y;";
+        let expected = Stmt::VarDecl(
+            BasicType::Int,
+            vec![("x", Some(Expr::Lit(Literal::Dec("2")))), ("y", None)]);
+        assert_eq!(expected, parse_stmt(src).unwrap());
+    }
+
+    #[test]
+    fn multi_var_decl_value_right() {
+        let src = "int x, y = -1;";
+        let expected = Stmt::VarDecl(
+            BasicType::Int,
+            vec![("x", None), ("y", Some(Expr::Lit(Literal::Dec("-1"))))]);
+        assert_eq!(expected, parse_stmt(src).unwrap());
+    }
 }

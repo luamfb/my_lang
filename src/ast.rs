@@ -1,5 +1,6 @@
 #[derive(Debug, PartialEq, Clone)]
 pub enum Stmt<'a> {
+    VarDecl(BasicType, Vec<(&'a str, Option<Expr<'a>>)>),
     Ret(Expr<'a>),
     Call(FnCall<'a>),
     AssignLike(AssignLike<'a>),
@@ -24,6 +25,16 @@ pub enum LoopKind {
     Until,
     DoWhile,
     DoUntil,
+}
+
+#[derive(Debug, PartialEq, Clone, Copy)]
+pub enum BasicType {
+    Int,
+    Uint,
+    Bool,
+    Byte,
+    Float,
+    Double,
 }
 
 #[derive(Debug, PartialEq, Clone)]
