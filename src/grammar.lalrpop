@@ -16,6 +16,20 @@ comma<T> : Vec<T> = {
     }
 };
 
+pub SrcFile = <toplevel*>;
+
+toplevel : Toplevel<'input> = {
+    <fn_impl> => Toplevel::Impl(<>),
+    <fn_decl> => Toplevel::Decl(<>),
+};
+
+fn_impl : FnImpl<'input> = <fn_prototype> <body> => FnImpl::new(<>);
+
+fn_decl = <fn_prototype> SEMI;
+
+fn_prototype : FnPrototype<'input>
+    = <ID> "(" <comma<(<type_spec> <ID>)>> ")" <type_spec?> => FnPrototype::new(<>);
+
 pub Stmt : Stmt<'input> = {
     <type_spec> <comma<(<ID> <(ASSIGN <Expr>)?>)>> SEMI => Stmt::VarDecl(<>),
     RET <Expr> SEMI                     => Stmt::Ret(<>),

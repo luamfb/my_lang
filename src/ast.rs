@@ -1,3 +1,24 @@
+pub type SrcFile<'a> = Vec<Toplevel<'a>>;
+
+#[derive(Debug, PartialEq, Clone)]
+pub enum Toplevel<'a> {
+    Impl(FnImpl<'a>),
+    Decl(FnPrototype<'a>),
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct FnImpl<'a> {
+    prototype: FnPrototype<'a>,
+    body: Vec<Stmt<'a>>,
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct FnPrototype<'a> {
+    fn_name: &'a str,
+    args: Vec<(BasicType, &'a str)>,
+    ret_type: Option<BasicType>,
+}
+
 #[derive(Debug, PartialEq, Clone)]
 pub enum Stmt<'a> {
     VarDecl(BasicType, Vec<(&'a str, Option<Expr<'a>>)>),
@@ -110,6 +131,27 @@ pub enum Literal<'a> {
     Hex(&'a str),
     Bin(&'a str),
     Oct(&'a str),
+}
+
+impl<'a> FnImpl<'a> {
+    pub fn new(prototype: FnPrototype<'a>, body: Vec<Stmt<'a>>) -> Self {
+        FnImpl {
+            prototype,
+            body,
+        }
+    }
+}
+
+impl<'a> FnPrototype<'a> {
+    pub fn new(fn_name: &'a str,
+               args: Vec<(BasicType, &'a str)>,
+               ret_type: Option<BasicType>) -> Self {
+        FnPrototype {
+            fn_name,
+            args,
+            ret_type,
+        }
+    }
 }
 
 impl<'a> FnCall<'a> {

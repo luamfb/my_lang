@@ -1,6 +1,6 @@
 use lalrpop_util::{lalrpop_mod, ParseError};
 use crate::{
-    ast::{Expr, Stmt},
+    ast::{Expr, Stmt, SrcFile},
     lexer::{Lexer, Token},
 };
 
@@ -20,6 +20,13 @@ pub fn parse_stmt<'a>(src: &'a str) -> Result<Stmt<'a>, Error<'a>> {
     let stmt = grammar::StmtParser::new()
         .parse(src, lexer);
     stmt
+}
+
+pub fn parse_src_file<'a>(src: &'a str) -> Result<SrcFile<'a>, Error<'a>> {
+    let lexer = Lexer::new(src);
+    let src_file = grammar::SrcFileParser::new()
+        .parse(src, lexer);
+    src_file
 }
 
 #[cfg(test)]
@@ -593,5 +600,207 @@ mod tests {
             BasicType::Int,
             vec![("x", None), ("y", Some(Expr::Lit(Literal::Dec("-1"))))]);
         assert_eq!(expected, parse_stmt(src).unwrap());
+    }
+
+    // ============================== SOURCE FILE ==============================
+
+    #[test]
+    fn simplest_fn_decl() {
+        let src = "foo();";
+        let prototype = FnPrototype::new("foo", vec![], None);
+        let expected = vec![Toplevel::Decl(prototype)];
+        assert_eq!(expected, parse_src_file(src).unwrap());
+    }
+
+    #[test]
+    fn single_fn_decl_1arg() {
+        let src = "print_num(int n);";
+        let prototype = FnPrototype::new("print_num",
+                                         vec![(BasicType::Int, "n")],
+                                         None);
+        let expected = vec![Toplevel::Decl(prototype)];
+        assert_eq!(expected, parse_src_file(src).unwrap());
+    }
+
+    #[test]
+    fn single_fn_decl_1arg_with_ret() {
+        let src = "twice(int x) int;";
+        let prototype = FnPrototype::new("twice",
+                                         vec![(BasicType::Int, "x")],
+                                         Some(BasicType::Int));
+        let expected = vec![Toplevel::Decl(prototype)];
+        assert_eq!(expected, parse_src_file(src).unwrap());
+    }
+
+    #[test]
+    fn single_fn_decl_multi_args() {
+        let src = "doStuff(int a, double b, byte c);";
+        let args = vec![
+            (BasicType::Int, "a"),
+            (BasicType::Double, "b"),
+            (BasicType::Byte, "c"),
+        ];
+        let prototype = FnPrototype::new("doStuff", args, None);
+        let expected = vec![Toplevel::Decl(prototype)];
+        assert_eq!(expected, parse_src_file(src).unwrap());
+    }
+
+    #[test]
+    fn single_fn_decl_multi_args_with_ret() {
+        let src = "addThree(int x, int y, int z) int;";
+        let args = vec![
+            (BasicType::Int, "x"),
+            (BasicType::Int, "y"),
+            (BasicType::Int, "z"),
+        ];
+        let prototype = FnPrototype::new("addThree", args, Some(BasicType::Int));
+        let expected = vec![Toplevel::Decl(prototype)];
+        assert_eq!(expected, parse_src_file(src).unwrap());
+    }
+
+    #[test]
+    fn multi_fn_decl() {
+        let src = "foo1() byte;\nfoo2(int x, double y);\nfoo3(float a, float b) float;";
+        let args_foo2 = vec![(BasicType::Int, "x"), (BasicType::Double, "y")];
+        let args_foo3 = vec![(BasicType::Float, "a"), (BasicType::Float, "b")];
+
+        let proto1 = FnPrototype::new("foo1", vec![], Some(BasicType::Byte));
+        let proto2 = FnPrototype::new("foo2", args_foo2, None);
+        let proto3 = FnPrototype::new("foo3", args_foo3, Some(BasicType::Float));
+
+        let expected = vec![
+            Toplevel::Decl(proto1),
+            Toplevel::Decl(proto2),
+            Toplevel::Decl(proto3),
+        ];
+        assert_eq!(expected, parse_src_file(src).unwrap());
+    }
+
+    #[test]
+    fn nop_fn_impl() {
+        let src = "doNothing() {\n}";
+        let proto = FnPrototype::new("doNothing", vec![], None);
+        let expected = vec![Toplevel::Impl(FnImpl::new(proto, vec![]))];
+        assert_eq!(expected, parse_src_file(src).unwrap());
+    }
+
+    #[test]
+    fn simple_fn_impl() {
+        let src = "twice(int x) int {\nret x * 2;\n}";
+        let proto = FnPrototype::new(
+            "twice",
+            vec![(BasicType::Int, "x")],
+            Some(BasicType::Int));
+        let ret_stmt = Stmt::Ret(Expr::BinOp(
+                Box::new(Expr::Id("x")),
+                BinaryOper::Mul,
+                Box::new(Expr::Lit(Literal::Dec("2")))));
+        let body = vec![ret_stmt];
+        let expected = vec![Toplevel::Impl(FnImpl::new(proto, body))];
+        assert_eq!(expected, parse_src_file(src).unwrap());
+    }
+
+    #[test]
+    fn simple_fn_impl2() {
+        let src = "addTwo(int a, int b) int {\nret a + b;\n}";
+        let proto = FnPrototype::new(
+            "addTwo",
+            vec![(BasicType::Int, "a"), (BasicType::Int, "b")],
+            Some(BasicType::Int));
+        let ret_stmt = Stmt::Ret(Expr::BinOp(
+                Box::new(Expr::Id("a")),
+                BinaryOper::Add,
+                Box::new(Expr::Id("b"))));
+        let body = vec![ret_stmt];
+        let expected = vec![Toplevel::Impl(FnImpl::new(proto, body))];
+        assert_eq!(expected, parse_src_file(src).unwrap());
+    }
+
+    #[test]
+    fn fn_impl_multi_stmt_body() {
+        let src = r#"uint_pow(double x, uint n) double {
+            double ans = 1.0;
+            uint i;
+            for i = 0; i < n; i++ {
+                ans *= x;
+            }
+            ret ans;
+        }"#;
+
+        let decl1 = Stmt::VarDecl(
+            BasicType::Double,
+            vec![("ans", Some(Expr::Lit(Literal::DecDot("1.0"))))]);
+
+        let decl2 = Stmt::VarDecl(BasicType::Uint, vec![("i", None)]);
+
+        let compare_expr = Expr::BinOp(
+            Box::new(Expr::Id("i")),
+            BinaryOper::Less,
+            Box::new(Expr::Id("n")));
+        let mult_assign_stmt = Stmt::AssignLike(AssignLike::Compound(
+                "ans",
+                CompoundOper::MulAssign,
+                Expr::Id("x")));
+        let for_stmt = Stmt::CLikeFor(
+            AssignLike::Assign(vec!["i"], Expr::Lit(Literal::Dec("0"))),
+            compare_expr,
+            AssignLike::Incr("i"),
+            vec![mult_assign_stmt]);
+
+        let ret_stmt = Stmt::Ret(Expr::Id("ans"));
+
+        let body = vec![
+            decl1,
+            decl2,
+            for_stmt,
+            ret_stmt,
+        ];
+        let proto = FnPrototype::new(
+            "uint_pow",
+            vec![(BasicType::Double, "x"), (BasicType::Uint, "n")],
+            Some(BasicType::Double));
+
+        let expected = vec![Toplevel::Impl(FnImpl::new(proto, body))];
+        assert_eq!(expected, parse_src_file(src).unwrap());
+    }
+
+    #[test]
+    fn multi_fn_impl() {
+        let src = r#"
+        addTwo(int x, int y) int {
+            ret x + y;
+        }
+        addThree(int a, int b, int c) int {
+            ret a + addTwo(b, c);
+        }"#;
+
+        let proto1 = FnPrototype::new(
+            "addTwo",
+            vec![(BasicType::Int, "x"), (BasicType::Int, "y")],
+            Some(BasicType::Int));
+        let ret1 = Stmt::Ret(Expr::BinOp(
+                Box::new(Expr::Id("x")),
+                BinaryOper::Add,
+                Box::new(Expr::Id("y"))));
+        let fn_impl1 = Toplevel::Impl(FnImpl::new(proto1, vec![ret1]));
+
+        let proto2 = FnPrototype::new(
+            "addThree",
+            vec![
+                (BasicType::Int, "a"),
+                (BasicType::Int, "b"),
+                (BasicType::Int, "c"),
+            ],
+            Some(BasicType::Int));
+        let ret2 = Stmt::Ret(Expr::BinOp(
+                Box::new(Expr::Id("a")),
+                BinaryOper::Add,
+                Box::new(Expr::Call(FnCall::new(
+                        "addTwo",
+                        vec![Expr::Id("b"), Expr::Id("c")])))));
+        let fn_impl2 = Toplevel::Impl(FnImpl::new(proto2, vec![ret2]));
+
+        let expected = vec![fn_impl1, fn_impl2];
+        assert_eq!(expected, parse_src_file(src).unwrap());
     }
 }
